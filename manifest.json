@@ -1,0 +1,11 @@
+{
+  "name": "FlyFit: Vuelos + Bienestar",
+  "short_name": "FlyFit",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF3FA",
+  "theme_color": "#0E2D69",
+  "lang": "es",
+  "icons": [{"src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]
+}
