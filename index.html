@@ -157,7 +157,7 @@ textarea{min-height:84px;resize:vertical;margin-top:8px}
 .tl{position:relative;display:block;height:26px;border-radius:7px;background-color:var(--card2);border:1px solid var(--line);overflow:hidden;
   background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),var(--line) calc(25% - 1px),var(--line) 25%)}
 .tl .sg{position:absolute;top:3px;bottom:3px;border-radius:4px;display:block;min-width:2px}
-.sg.sleep{background:var(--sleep)} .sg.nap{background:var(--nap)} .sg.duty{background:var(--fly)} .sg.train{background:var(--ex)}
+.sg.sleep{background:var(--sleep)} .sg.nap{background:var(--nap)} .sg.duty{background:var(--fly)} .sg.train{background:var(--ex)} .sg.go{background:color-mix(in srgb,var(--fly) 40%,var(--card))} .sg.post{background:color-mix(in srgb,var(--rest) 35%,var(--card))}
 .tl .nowm{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--warn);display:block}
 .tl.mini{height:12px;border-radius:4px}
 .tl.mini .sg{top:2px;bottom:2px;border-radius:2px}
@@ -984,7 +984,7 @@ function sleepOpp(s){
   const i = info(s), pv = info(addD(s,-1));
   if (i.type==="vuelo" && ymd(i.duty.s)!==s) return 0;
   let bed = T(addD(s,-1), "19:00");
-  if (pv.type==="vuelo" && pv.duty.e.getTime()+36e5 > bed.getTime()) bed = new Date(pv.duty.e.getTime()+36e5);
+  if (pv.type==="vuelo" && arrOf(pv.duty).getTime()+RC().wind*6e4 > bed.getTime()) bed = new Date(arrOf(pv.duty).getTime()+RC().wind*6e4);
   const td = i.type==="vuelo" ? i.duty : null;
   if (td){
     const wake = new Date(td.s.getTime() - RC().prep*60000);
@@ -1602,7 +1602,9 @@ function sleepTip(s){
 }
 
 /* ===================== Motor de coordinación: sueño, servicio y entreno ===================== */
-const DEF_REST = {sleepH:8, prep:120, bed:"23:00", wind:60, trainAt:"10:00"};
+const DEF_REST = {sleepH:8, prep:120, bed:"23:00", wind:45, trainAt:"10:00", home:120, hotel:60, post:60};
+/* Llegada a casa (o al hotel si pernoctas fuera) después de aterrizar */
+const arrOf = d => addM(d.e, lastDest(d)==="SCL" ? RC().home : RC().hotel);
 const RC = () => Object.assign({}, DEF_REST, (S.cfg && S.cfg.rest) || {});
 const at = (s,t) => new Date(`${s}T${t}:00-03:00`);
 const addM = (d,m) => new Date(d.getTime()+m*6e4);
@@ -1632,10 +1634,10 @@ function night(k){
   const pv = duties.filter(d => d!==nx && d.e > at(k,"12:00") && d.e <= at(k1,"10:00")).at(-1);
   const wm = nx ? addM(nx.s,-c.prep) : null;
   if (wm && wake > wm){ wake = wm; bed = addM(wake,-L); why = nx.code ? `reunión a las ${tt(nx.s)}` : `presentación a las ${tt(nx.s)}`; }
-  if (pv){ const bm = addM(pv.e,c.wind); if (bed < bm){ bed = bm; wake = wm ? minD(addM(bed,L), wm) : addM(bed,L); why = `término a las ${tt(pv.e)}`; } }
+  if (pv){ const bm = addM(arrOf(pv),c.wind); if (bed < bm){ bed = bm; wake = wm ? minD(addM(bed,L), wm) : addM(bed,L); why = `término a las ${tt(pv.e)}`; } }
   if (bed < at(k,"16:00")){
     kind = "pre"; bed = at(k,"16:00"); if (pv) bed = maxD(bed, addM(pv.e,c.wind));
-    if (nx && !nx.code && nx.e > at(k1,"03:00") && nx.e < at(k1,"16:00")){ const a = addM(nx.e,c.wind); recup = {a, b:addM(a, Math.max(180, L - Math.max(0,(wake-bed)/6e4)))}; }
+    if (nx && !nx.code && nx.e > at(k1,"03:00") && nx.e < at(k1,"16:00")){ const a = addM(arrOf(nx),c.wind); recup = {a, b:addM(a, Math.max(180, L - Math.max(0,(wake-bed)/6e4)))}; }
   }
   if (wake <= bed){ kind = "none"; wake = bed; }
   const len = (wake-bed)/6e4;
@@ -1654,7 +1656,7 @@ function napOf(s){
 function busyOf(s){
   const c = RC(), out = [];
   [night(addD(s,-1)), night(s)].forEach(n => { if (n.kind!=="none") out.push([addM(n.bed,-120), addM(n.wake,45)]); if (n.recup) out.push([addM(n.recup.a,-15), addM(n.recup.b,60)]); });
-  duties.forEach(d => out.push([addM(d.s,-c.prep-60), addM(d.e,90)]));
+  duties.forEach(d => out.push([addM(d.s,-c.prep-60), addM(arrOf(d),c.post)]));
   acts().forEach(a => out.push(a.home ? [a.s, addM(a.e,1)] : [addM(a.s,-c.prep-30), addM(a.e,60)]));
   const np = napOf(s); if (np) out.push([addM(np.a,-30), addM(np.b,30)]);
   return out;
@@ -1698,7 +1700,7 @@ function blocks(s){
   const d0 = at(s,"00:00"), d1 = at(addD(s,1),"00:00"), out = [];
   const push = (k,a,b,l) => { const x = maxD(a,d0), y = minD(b,d1); if (y>x) out.push({k, a:x, b:y, A:a, B:b, l}); };
   [night(addD(s,-1)), night(s)].forEach(n => { if (n.kind!=="none") push(n.kind==="pre"?"nap":"sleep", n.bed, n.wake, n.kind==="pre"?"Sueño previo":"Sueño"); if (n.recup) push("nap", n.recup.a, n.recup.b, "Sueño de recuperación"); });
-  duties.forEach(d => push("duty", d.s, d.e, "Servicio"));
+  duties.forEach(d => { const ar = arrOf(d); push("duty", d.s, d.e, "Servicio"); push("go", d.e, ar, lastDest(d)==="SCL" ? "Traslado a casa" : "Traslado al hotel"); if (RC().post) push("post", ar, addM(ar,RC().post), "Descanso post vuelo"); });
   acts().forEach(a => push("act", a.s, a.e, a.label));
   const np = napOf(s); if (np) push("nap", np.a, np.b, "Siesta");
   const p = planned(s), tw = trainWin(s,p); if (tw && !tw.none) push("train", tw.a, tw.b, p.name);
@@ -1710,7 +1712,7 @@ function tl(s, mini){
   const now = new Date(), nm = ymd(now)===s ? `<i class="nowm" style="left:${P(now).toFixed(2)}%"></i>` : "";
   return `<span class="tl${mini?" mini":""}" role="img" aria-label="Línea de tiempo del día">${segs}${nm}</span>${mini?"":`<div class="tlx"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>`}`;
 }
-const LEG = `<div class="tleg"><span style="--c:var(--sleep)"><i></i>Sueño</span><span style="--c:var(--nap)"><i></i>Siesta o recuperación</span><span style="--c:var(--fly)"><i></i>Servicio</span><span style="--c:var(--ground)"><i></i>Turno o reunión</span><span style="--c:var(--ex)"><i></i>Entreno</span></div>`;
+const LEG = `<div class="tleg"><span style="--c:var(--sleep)"><i></i>Sueño</span><span style="--c:var(--nap)"><i></i>Siesta o recuperación</span><span style="--c:var(--fly)"><i></i>Servicio</span><span style="--c:color-mix(in srgb,var(--fly) 40%,var(--card))"><i></i>Traslado</span><span style="--c:color-mix(in srgb,var(--rest) 35%,var(--card))"><i></i>Descanso post vuelo</span><span style="--c:var(--ground)"><i></i>Turno o reunión</span><span style="--c:var(--ex)"><i></i>Entreno</span></div>`;
 /* Agenda cronológica del día. */
 function agenda(s){
   const items = [], p = planned(s), n0 = night(addD(s,-1)), n1 = night(s), d0 = at(s,"00:00"), d1 = at(addD(s,1),"00:00"), inD = x => x>=d0 && x<d1;
@@ -1718,6 +1720,8 @@ function agenda(s){
   if (n0.recup && inD(n0.recup.a)) items.push({t:n0.recup.a, c:"var(--nap)", ic:FI.bed, b:`Sueño de recuperación hasta las ${tt(n0.recup.b)}`, m:"Oscuridad total y sin pantallas. No pases de las 13:00 para cuidar la noche."});
   duties.filter(d => d.e>d0 && d.s<d1).forEach(d => items.push({t: inD(d.s) ? d.s : d0, c:"var(--fly)", ic:FI.plane, b: inD(d.s) ? `Presentación · ${chain(d)}` : `Servicio en curso · ${chain(d)}`, m:`Jornada ${hDur(d.e-d.s)}${d.est?" aprox.":""}, término ${tDay(d.e,s)}${lastDest(d)!=="SCL"?`. Pernoctas en ${city(lastDest(d))}`:""}`}));
   acts().filter(a => a.e>d0 && a.s<d1).forEach(a => items.push({t:a.s, c:"var(--ground)", ic: a.home ? FI.home : FI.user, b:`${a.label} hasta las ${tt(a.e)}`, m: a.home ? "Turno en casa: bolso listo; el gimnasio queda para después del turno." : "Presencial: te levantas con margen y el entreno queda fuera de este horario."}));
+  duties.filter(d => { const ar = arrOf(d); return ar>=d0 && ar<d1; }).forEach(d => { const ar = arrOf(d), c = RC(), home = lastDest(d)==="SCL";
+    items.push({t:ar, c:"var(--rest)", ic: home ? FI.home : FI.bed, b: home ? "Llegada a casa" : `Llegada al hotel en ${city(lastDest(d))}`, m: `${hDur(ar-d.e)} desde el término a las ${tt(d.e)}.${c.post ? ` Descanso post vuelo hasta las ${tt(addM(ar,c.post))}: come, dúchate y desconecta antes de entrenar.` : ""}`}); });
   const np = napOf(s); if (np) items.push({t:np.a, c:"var(--nap)", ic:FI.moon, b:`Siesta hasta las ${tt(np.b)}`, m:"90 min, un ciclo completo antes de una jornada larga."});
   const tw = trainWin(s,p);
   if (tw && !tw.none) items.push({t:tw.a, c:"var(--ex)", ic:FI.dumb, b:`${p.name} hasta las ${tt(tw.b)}`, m:`Unos ${tw.D} min, con margen para comer, ducharte y dormir.`});
@@ -1890,12 +1894,15 @@ function restParams(){
   const times = (a,b,st) => { const o = []; for (let m=a; m<=b; m+=st){ const h = Math.floor(m/60)%24; o.push(`${String(h).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`); } return o; };
   return `<div class="card">
     <div class="chd"><span class="ovl">Parámetros de descanso</span>${XI.gear.replace("<svg ","<svg width=\"16\" height=\"16\" style=\"color:var(--muted)\" ")}</div>
-    <p class="lead">Con estos valores se calculan tu hora de acostarte, las siestas y la ventana de entrenamiento de cada día.</p>
+    <p class="lead">Con estos valores se calculan tu hora de acostarte, las siestas y la ventana de entrenamiento. Después de aterrizar se cuenta el traslado a casa (o al hotel) y luego el descanso post vuelo antes de entrenar.</p>
     <div class="two" style="margin-top:12px">
       <div class="fld"><label for="rc-sl">Sueño objetivo</label><select id="rc-sl" data-act="rc" data-v="sleepH">${opt([6.5,7,7.5,8,8.5,9], c.sleepH, fmtH)}</select></div>
       <div class="fld"><label for="rc-pr">Levantarte antes de presentarte</label><select id="rc-pr" data-act="rc" data-v="prep">${opt([60,75,90,105,120,150], c.prep, x=>fmtH(x/60))}</select></div>
       <div class="fld"><label for="rc-bd">Hora habitual de dormir</label><select id="rc-bd" data-act="rc" data-v="bed">${opt(times(21*60, 24*60+30, 30), c.bed)}</select></div>
       <div class="fld"><label for="rc-tr">Hora preferida de entreno</label><select id="rc-tr" data-act="rc" data-v="trainAt">${opt(times(6*60, 20*60, 60), c.trainAt)}</select></div>
+      <div class="fld"><label for="rc-hm">Aterrizaje a casa</label><select id="rc-hm" data-act="rc" data-v="home">${opt([60,90,120,150,180], c.home, x=>fmtH(x/60))}</select></div>
+      <div class="fld"><label for="rc-ht">Aterrizaje al hotel</label><select id="rc-ht" data-act="rc" data-v="hotel">${opt([30,45,60,90,120], c.hotel, x=>fmtH(x/60))}</select></div>
+      <div class="fld"><label for="rc-po">Descanso post vuelo</label><select id="rc-po" data-act="rc" data-v="post">${opt([0,30,60,90,120,180], c.post, x=>x?fmtH(x/60):"Sin descanso")}</select></div>
     </div></div>`;
 }
 function vDes(){
@@ -2641,7 +2648,7 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const el = e.target;
-  if (el.dataset.act==="rc"){ const k = el.dataset.v; S.cfg.rest = Object.assign({}, RC(), {[k]: ["sleepH","prep"].includes(k) ? +el.value : el.value}); save("cfg","rest"); rebuild(); toast("Parámetros de descanso actualizados"); return rerender(true); }
+  if (el.dataset.act==="rc"){ const k = el.dataset.v; S.cfg.rest = Object.assign({}, RC(), {[k]: ["sleepH","prep","home","hotel","post"].includes(k) ? +el.value : el.value}); save("cfg","rest"); rebuild(); toast("Parámetros de descanso actualizados"); return rerender(true); }
   if (el.dataset.act!=="ov") return;
   const s = el.closest("[data-d]").dataset.d, base = planned(s).base;
   setDayUndo(s, {ov: el.value===base ? "" : el.value}, `Sesión cambiada a ${SESS[el.value].name.toLowerCase()}`); rerender(true);
