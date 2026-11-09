@@ -588,23 +588,23 @@ const BUILTIN = [
   ...["04","05","06","07","17","18","19","20","26","27"].map(d => ({date:`2026-10-${d}`,type:"libre"})),
   /* Noviembre 2026 (programación impresa el 27-10-2026) */
   ...["01","02","06","07","22","23","24","25"].map(d => ({date:`2026-11-${d}`,type:"libre"})),
-  ...["12","13","14","15"].map(d => ({date:`2026-11-${d}`,type:"libre",code:"DR",note:"DR: día de descanso"})),
+  ...["12","13","14","15"].map(d => ({date:`2026-11-${d}`,type:"libre",code:"DR",note:"DR: día requerido (libre solicitado)"})),
   {date:"2026-11-03",type:"vuelo",r:"06:07",d:"13:55",s:T("2026-11-03","06:07"),e:T("2026-11-03","13:55"),legs:["SCL-LSC","LSC-SCL","SCL-PMC"]},
   {date:"2026-11-04",type:"fuera",place:"PMC",back:"2026-11-05"},
   {date:"2026-11-05",type:"vuelo",r:"05:31",d:"16:27",s:T("2026-11-05","05:31"),e:T("2026-11-05","16:27"),legs:["PMC-SCL","SCL-IQQ","IQQ-SCL"]},
-  ...["08","16","29"].map(d => ({date:`2026-11-${d}`,type:"blanco",note:"Reserva B de 03:00 a 21:00."})),
+  ...["08","16","29"].map(d => ({date:`2026-11-${d}`,type:"blanco",note:"Te pueden asignar actividad hasta las 21:00 del día anterior."})),
   {date:"2026-11-09",type:"vuelo",r:"03:50",d:"12:59",s:T("2026-11-09","03:50"),e:T("2026-11-09","12:59"),legs:["SCL-ANF","ANF-SCL","SCL-PMC"]},
   {date:"2026-11-10",type:"fuera",place:"PMC",back:"2026-11-11"},
   {date:"2026-11-11",type:"vuelo",r:"05:31",d:"15:25",s:T("2026-11-11","05:31"),e:T("2026-11-11","15:25"),legs:["PMC-SCL","SCL-ANF","ANF-SCL"]},
-  ...["17","18","19","20"].map(d => ({date:`2026-11-${d}`,type:"act",code:"HSB1",label:"Reserva en casa",st:"00:00",en:"11:59",home:true})),
+  ...["17","18","19","20"].map(d => ({date:`2026-11-${d}`,type:"act",code:"HSB1",label:"Turno en casa",st:"00:00",en:"11:59",home:true})),
   {date:"2026-11-21",type:"vuelo",r:"12:45",d:"21:25",s:T("2026-11-21","12:45"),e:T("2026-11-21","21:25"),legs:["SCL-POA","POA-SCL"]},
-  {date:"2026-11-26",type:"act",code:"MTC",label:"Actividad en tierra (MTC)",st:"09:00",en:"12:00"},
+  {date:"2026-11-26",type:"act",code:"MTC",label:"Reunión con tu jefa (MTC)",st:"09:00",en:"12:00"},
   {date:"2026-11-27",type:"vuelo",r:"03:31",d:"11:28",s:T("2026-11-27","03:31"),e:T("2026-11-27","11:28"),legs:["SCL-PUQ","PUQ-PMC"]},
   {date:"2026-11-28",type:"vuelo",r:"14:08",d:"22:26",s:T("2026-11-28","14:08"),e:T("2026-11-28","22:26"),legs:["PMC-SCL","SCL-CPO","CPO-SCL"]},
   {date:"2026-11-30",type:"vuelo",r:"04:25",d:"10:48",s:T("2026-11-30","04:25"),e:T("2026-11-30","10:48"),legs:["SCL-CJC","CJC-SCL"]}
 ];
 const TONE = {vuelo:"var(--fly)",fuera:"var(--away)",blanco:"var(--res)",libre:"var(--off)",tierra:"var(--ground)",act:"var(--ground)",sininfo:"var(--none)"};
-const KIND = {vuelo:"Día de vuelo",fuera:"Fuera de casa",blanco:"Día B (blanco)",libre:"Día libre",tierra:"DH, feriado devuelto",act:"Reserva o actividad en tierra",sininfo:"Sin programación cargada"};
+const KIND = {vuelo:"Día de vuelo",fuera:"Fuera de casa",blanco:"Día B (blanco)",libre:"Día libre",tierra:"DH, feriado devuelto",act:"Turno en casa o reunión",sininfo:"Sin programación cargada"};
 
 /* Plan: bloque de 4 semanas con las rutinas de Coke (Focus Training).
    Día 1 = lunes 9 de noviembre de 2026. Cada semana son 7 días corridos desde el día 1 (lunes a domingo).
@@ -827,7 +827,7 @@ function adaptFor(s, sess){
     if (+d.r.slice(0,2) >= 12) return `Te presentas a las ${d.r}. Haz la sesión en la mañana, comiendo 2-3 h antes.`;
     return "Día de vuelo. Si llegas con energía, haz una versión corta de 25-30 min.";
   }
-  if (i.type==="act") return (rest ? "Descanso planificado." : i.home ? `Reserva en casa de ${i.st} a ${i.en}: entrena desde el mediodía si no te llaman.` : `${i.label} de ${i.st} a ${i.en}: entrena fuera de ese horario.`) + night;
+  if (i.type==="act") return (rest ? "Descanso planificado." : i.home ? `Turno en casa de ${i.st} a ${i.en}: entrena desde las ${i.en>"11:00"?"12:00":i.en} si no te activan.` : `${i.label} de ${i.st} a ${i.en}: entrena fuera de ese horario.`) + night;
   if (i.type==="fuera") return rest ? "Descanso planificado. Aprovecha de caminar." : `Día completo${i.place?` en ${city(i.place)}`:" fuera de casa"}: haz la rutina si el gimnasio del hotel tiene el equipo; si no, fuerza en hotel o sal a trotar.`;
   if (i.type==="blanco") return (rest ? "Descanso planificado." : "Día B: si a las 21:00 de la víspera no te asignaron nada, haz la sesión completa. Si te asignan, cámbiala por pasos.") + night;
   if (i.type==="libre" || i.type==="tierra") return (rest ? "Descanso planificado. Una caminata suave suma pasos." : "Día libre en Santiago: buen día para la sesión completa.") + night;
@@ -851,7 +851,7 @@ function status(now){
   if (loc!=="SCL") return {k:"fuera", label:"Fuera de casa", where:`En ${city(loc)}.${next?` Vuelves a trabajar el ${fDay.format(next.s)} a las ${next.r}.`:""}`};
   const td = info(t);
   if (td.type==="blanco") return {k:"blanco", label:"Día B", where:"En Santiago. Revisa si te asignaron actividad."};
-  if (td.type==="libre") return {k:"libre", label:td.code==="DR"?"Día de descanso (DR)":"Día libre", where:"En Santiago, sin vuelos hoy."};
+  if (td.type==="libre") return {k:"libre", label:td.code==="DR"?"Día requerido (DR)":"Día libre", where:"En Santiago, sin vuelos hoy."};
   if (td.type==="act") return {k:"act", label:td.label, where:`De ${td.st} a ${td.en}${td.home?": debes estar disponible para un llamado":""}.`};
   if (td.type==="tierra") return {k:"tierra", label:"DH", where:"Feriado devuelto, sin vuelos hoy."};
   if (td.type==="fuera") return {k:"fuera", label:"Fuera de casa", where:td.place?`En ${city(td.place)}.`:"Pernoctas fuera de Santiago."};
@@ -976,24 +976,86 @@ function openImport(){
 function closeImport(){ $("#imp").hidden = true; }
 function renderImp(){
   const b = $("#impBody");
-  if (!SAMPLE){ b.innerHTML = `<p class="lead">La lectura automática funciona al abrir la app desde Claude. Mientras tanto, mándame la programación por el chat y la cargo yo.</p>`; return; }
   if (imp.state==="loading"){ b.innerHTML = `<div class="loading"><span class="spin"></span>Leyendo tu programación…</div>`; return; }
   if (imp.state==="preview"){
     const a = imp.arr;
     b.innerHTML = `<p class="lead">${a.length} días leídos de ${monthLabel(imp.m)}. Revisa antes de guardar; los días que ya existían se reemplazan y el plan se reajusta solo.</p>
       <ul class="up prev">${a.map(x => { const i = x.type==="vuelo" ? {type:"vuelo",duty:x} : x;
         return `<li><div class="d">${wdn(x.date)} ${Number(x.date.slice(8))}</div>
-        <div class="s">${x.type==="vuelo" ? `${x.r} a ${x.est?"sin dato":x.d}<br><span style="color:var(--muted);font-size:.8rem">${x.legs.map(l=>l.replace("-","→")).join("  ")}</span>` : KIND[x.type]}</div>
+        <div class="s">${x.type==="vuelo" ? `${x.r} a ${x.est?"sin dato":x.d}<br><span style="color:var(--muted);font-size:.8rem">${x.legs.map(l=>l.replace("-","→")).join("  ")}</span>` : x.type==="act" ? `${esc(x.label)}<br><span style="color:var(--muted);font-size:.8rem">${x.st} a ${x.en}</span>` : x.code==="DR" ? "Día requerido" : x.type==="fuera" ? `Pernocta en ${city(x.place)}` : KIND[x.type]}</div>
         <span class="tag" style="--t:${TONE[x.type]}">${codeOf(i)}</span></li>`; }).join("")}</ul>
       <div class="row"><button type="button" class="btn ghost" data-act="impback">Volver</button><button type="button" class="btn" data-act="impsave" style="flex:1">Guardar ${a.length} días</button></div>`;
     return;
   }
-  b.innerHTML = `<p class="lead">Pega el texto de tu programación o sube una captura. La leo, te muestro el resultado y tú confirmas.</p>
+  const pdf = `<p class="lead">Sube el PDF de tu programación en vista calendario. La app lo lee sola, te muestra el resultado y tú confirmas.</p>
+    <label class="btn block" style="margin-top:12px;text-align:center;cursor:pointer">Subir PDF de programación<input type="file" accept="application/pdf,.pdf" data-act="imppdf" hidden></label>
+    ${imp.err?`<p class="warn">${esc(imp.err)}</p>`:""}`;
+  if (!SAMPLE){ b.innerHTML = pdf; return; }
+  b.innerHTML = `${pdf}<p class="lead" style="margin-top:18px">También puedes pegar el texto o subir una captura.</p>
     <div class="fld" style="margin-top:10px"><label for="impM">Mes</label><input id="impM" type="month" value="${imp.m}"></div>
     <div class="fld" style="margin-top:10px"><label for="impTxt">Texto de la programación</label><textarea id="impTxt" placeholder="Pega aquí la programación del mes…">${esc(imp.txt)}</textarea></div>
     <div class="fld" style="margin-top:10px"><label for="impImg">O una captura (puedes subir varias)</label><input id="impImg" type="file" accept="image/*" multiple></div>
-    ${imp.err?`<p class="warn">${esc(imp.err)}</p>`:""}
-    <button type="button" class="btn block" data-act="impread" style="margin-top:14px">Leer programación</button>`;
+    <button type="button" class="btn ghost block" data-act="impread" style="margin-top:14px">Leer texto o captura</button>`;
+}
+const actLabel = c => /^HSB/.test(c) ? "Turno en casa" : c==="MTC" ? "Reunión con tu jefa (MTC)" : `Actividad en tierra (${c})`;
+/* Lectura local del PDF de programación (vista calendario), sin IA. */
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+function loadPdfJs(){
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((ok, ko) => { const sc = document.createElement("script"); sc.src = PDFJS+"pdf.min.js";
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS+"pdf.worker.min.js"; ok(window.pdfjsLib); };
+    sc.onerror = () => ko({message:"No pude cargar el lector de PDF. Revisa tu conexión a internet."}); document.head.appendChild(sc); });
+}
+const MON = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+const WDAY = /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)$/i;
+function rosterFromItems(items){
+  const T = items.map(it => ({t:it.str.trim(), x:it.transform[4], y:it.transform[5]})).filter(i => i.t);
+  const title = T.map(i => i.t).join(" ").match(/\b([A-Za-zé]+)\s+(20\d{2})\b/g)?.map(x => x.split(/\s+/)).find(([m]) => MON[m.toLowerCase()]);
+  if (!title) return null;
+  const mo = MON[title[0].toLowerCase()], yr = +title[1], month = `${yr}-${String(mo).padStart(2,"0")}`;
+  const heads = T.filter(i => WDAY.test(i.t)).map(h => { const n = T.find(i => /^\d{1,2}$/.test(i.t) && Math.abs(i.y-h.y)<4 && i.x>h.x && i.x-h.x<110); return n ? {x:h.x, y:h.y, n:+n.t, lines:[]} : null; }).filter(Boolean);
+  if (heads.length < 20) return null;
+  T.forEach(i => { if (WDAY.test(i.t) || (/^\d{1,2}$/.test(i.t) && heads.some(h => Math.abs(i.y-h.y)<4))) return;
+    let best = null; heads.forEach(h => { if (Math.abs(i.x-h.x)<30 && i.y<h.y-3 && (!best || h.y<best.y)) best = h; });
+    if (best) best.lines.push(i); });
+  heads.sort((a,b) => b.y-a.y || a.x-b.x);
+  let off = heads[0].n>7 ? -1 : 0, prev = 0; const ym = k => { let y = yr, m = mo+k; if (m<1){m+=12;y--;} if (m>12){m-=12;y++;} return [y,m]; };
+  const out = []; let away = null;
+  heads.forEach(h => {
+    if (h.n<prev) off++; prev = h.n;
+    const [y,m] = ym(off), date = `${y}-${String(m).padStart(2,"0")}-${String(h.n).padStart(2,"0")}`;
+    const txt = h.lines.sort((a,b) => b.y-a.y || a.x-b.x).map(l => l.t).join(" ").toUpperCase();
+    const legs = txt.match(/\b[A-Z]{3}-[A-Z]{3}\b/g) || [], rd = txt.match(/R:\s*(\d{2}:\d{2})\s*D:\s*(\d{2}:\d{2})/), st = txt.match(/S:\s*(\d{2}:\d{2})/), en = txt.match(/E:\s*(\d{2}:\d{2})/);
+    const code = txt.replace(/R:\s*\d{2}:\d{2}|D:\s*\d{2}:\d{2}|S:\s*\d{2}:\d{2}|E:\s*\d{2}:\d{2}|\b[A-Z]{3}-[A-Z]{3}\b/g, " ").trim().split(/\s+/).filter(Boolean).at(-1) || "";
+    let e = null;
+    if (legs.length && rd){ e = {date, type:"vuelo", r:rd[1], d:rd[2], dNext: rd[2]<rd[1], legs}; const dst = legs.at(-1).slice(4); away = dst!=="SCL" ? dst : null; }
+    else {
+      if (["DO","DL","VAC","LIB","FER"].includes(code)) e = {date, type:"libre", code: code==="DO" ? undefined : code};
+      else if (code==="DR") e = {date, type:"libre", code:"DR"};
+      else if (code==="B") e = {date, type:"blanco"};
+      else if (code==="DH") e = {date, type:"tierra"};
+      else if (code && st && en) e = {date, type:"act", code, st:st[1], en:en[1]};
+      else if (code) e = {date, type:"libre", code:code.slice(0,4), note:`Código ${code}: revísalo en tu programación.`};
+      else if (away) e = {date, type:"fuera", place:away};
+      if (!(e && e.type==="fuera")) away = null;
+    }
+    if (e) out.push(e);
+  });
+  return {month, arr:out};
+}
+async function readPdf(file){
+  const lib = await loadPdfJs(), doc = await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise, res = [];
+  for (let k=1; k<=doc.numPages; k++){ const r = rosterFromItems((await (await doc.getPage(k)).getTextContent()).items); if (r) res.push(r); }
+  if (!res.length) throw {message:"No reconocí un calendario mensual en ese PDF. Sube el PDF de la vista calendario de tu programación."};
+  const arr = res.flatMap(r => normalize(r.arr, r.month));
+  if (!arr.length) throw {message:"El PDF no tiene días válidos para cargar."};
+  return {month:res[0].month, arr};
+}
+async function impPdf(file){
+  imp.err = ""; imp.state = "loading"; renderImp();
+  try { const r = await readPdf(file); imp.m = r.month; imp.arr = r.arr; imp.state = "preview"; }
+  catch(e){ imp.state = "form"; imp.err = e?.message || "No se pudo leer el PDF."; }
+  renderImp();
 }
 function normalize(arr, month){
   const out = []; if (!Array.isArray(arr)) return out;
@@ -1012,8 +1074,9 @@ function normalize(arr, month){
       Object.assign(e, {r, legs, s:s.toISOString(), e:en.toISOString()});
     }
     if (x.type==="fuera" && /^[A-Z]{3}$/.test(x.place||"")) e.place = x.place;
-    if (x.type==="act"){ if (!/^\d{2}:\d{2}$/.test(x.st||"") || !/^\d{2}:\d{2}$/.test(x.en||"")) continue; e.st = x.st; e.en = x.en; e.code = String(x.code||"ACT").slice(0,8); e.label = /^HSB/.test(e.code) ? "Reserva en casa" : `Actividad en tierra (${e.code})`; e.home = /^HSB/.test(e.code); }
-    if (x.type==="libre" && x.code) e.code = String(x.code).slice(0,4);
+    if (x.type==="act"){ if (!/^\d{2}:\d{2}$/.test(x.st||"") || !/^\d{2}:\d{2}$/.test(x.en||"")) continue; e.st = x.st; e.en = x.en; e.code = String(x.code||"ACT").slice(0,8); e.label = actLabel(e.code); e.home = /^HSB/.test(e.code); }
+    if (x.type==="libre" && x.code){ e.code = String(x.code).slice(0,4); if (e.code==="DR" && !x.note) e.note = "DR: día requerido (libre solicitado)"; }
+    if (x.type==="blanco" && !x.note) e.note = "Te pueden asignar actividad hasta las 21:00 del día anterior.";
     if (x.note) e.note = String(x.note).slice(0,200);
     out.push(e);
   }
@@ -1138,7 +1201,7 @@ function weekDays(ws){
 }
 
 /* ===================== Motor de coordinación: sueño, servicio y entreno ===================== */
-const DEF_REST = {sleepH:8, prep:90, bed:"23:00", wind:60, trainAt:"10:00"};
+const DEF_REST = {sleepH:8, prep:120, bed:"23:00", wind:60, trainAt:"10:00"};
 const RC = () => Object.assign({}, DEF_REST, (S.cfg && S.cfg.rest) || {});
 const at = (s,t) => new Date(`${s}T${t}:00-03:00`);
 const addM = (d,m) => new Date(d.getTime()+m*6e4);
@@ -1161,8 +1224,8 @@ function night(k){
   const wm = nx ? addM(nx.s,-c.prep) : null;
   if (wm && wake > wm){ wake = wm; bed = addM(wake,-L); why = `${nx.code ? nx.code : "presentación"} a las ${tt(nx.s)}`; }
   if (pv){ const bm = addM(pv.e,c.wind); if (bed < bm){ bed = bm; wake = wm ? minD(addM(bed,L), wm) : addM(bed,L); why = `término a las ${tt(pv.e)}`; } }
-  if (bed < at(k,"18:00")){
-    kind = "pre"; bed = at(k,"18:00"); if (pv) bed = maxD(bed, addM(pv.e,c.wind));
+  if (bed < at(k,"16:00")){
+    kind = "pre"; bed = at(k,"16:00"); if (pv) bed = maxD(bed, addM(pv.e,c.wind));
     if (nx && !nx.code && nx.e > at(k1,"03:00") && nx.e < at(k1,"16:00")){ const a = addM(nx.e,c.wind); recup = {a, b:addM(a, Math.max(180, L - Math.max(0,(wake-bed)/6e4)))}; }
   }
   if (wake <= bed){ kind = "none"; wake = bed; }
@@ -1238,14 +1301,14 @@ function tl(s, mini){
   const now = new Date(), nm = ymd(now)===s ? `<i class="nowm" style="left:${P(now).toFixed(2)}%"></i>` : "";
   return `<span class="tl${mini?" mini":""}" role="img" aria-label="Línea de tiempo del día">${segs}${nm}</span>${mini?"":`<div class="tlx"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>`}`;
 }
-const LEG = `<div class="tleg"><span style="--c:var(--sleep)"><i></i>Sueño</span><span style="--c:var(--nap)"><i></i>Siesta o recuperación</span><span style="--c:var(--fly)"><i></i>Servicio</span><span style="--c:var(--ground)"><i></i>Reserva o tierra</span><span style="--c:var(--ex)"><i></i>Entreno</span></div>`;
+const LEG = `<div class="tleg"><span style="--c:var(--sleep)"><i></i>Sueño</span><span style="--c:var(--nap)"><i></i>Siesta o recuperación</span><span style="--c:var(--fly)"><i></i>Servicio</span><span style="--c:var(--ground)"><i></i>Turno o reunión</span><span style="--c:var(--ex)"><i></i>Entreno</span></div>`;
 /* Agenda cronológica del día. */
 function agenda(s){
   const items = [], p = planned(s), n0 = night(addD(s,-1)), n1 = night(s), d0 = at(s,"00:00"), d1 = at(addD(s,1),"00:00"), inD = x => x>=d0 && x<d1;
   if (n0.kind!=="none" && inD(n0.wake)) items.push({t:n0.wake, c:"var(--sleep)", ic:FI.sun, b:"Despertar", m:`${hDur(n0.wake-n0.bed)} de sueño${n0.short?`, recortado por ${n0.why}`:""}`});
   if (n0.recup && inD(n0.recup.a)) items.push({t:n0.recup.a, c:"var(--nap)", ic:FI.bed, b:`Sueño de recuperación hasta las ${tt(n0.recup.b)}`, m:"Oscuridad total y sin pantallas. No pases de las 13:00 para cuidar la noche."});
   duties.filter(d => d.e>d0 && d.s<d1).forEach(d => items.push({t: inD(d.s) ? d.s : d0, c:"var(--fly)", ic:FI.plane, b: inD(d.s) ? `Presentación · ${chain(d)}` : `Servicio en curso · ${chain(d)}`, m:`Jornada ${hDur(d.e-d.s)}${d.est?" aprox.":""}, término ${tDay(d.e,s)}${lastDest(d)!=="SCL"?`. Pernoctas en ${city(lastDest(d))}`:""}`}));
-  acts.filter(a => a.e>d0 && a.s<d1).forEach(a => items.push({t:a.s, c:"var(--ground)", ic: a.home ? FI.home : FI.cal, b:`${a.label} hasta las ${tt(a.e)}`, m: a.home ? "Disponible para un llamado: ten el bolso listo y el gimnasio queda para después." : "Actividad presencial: el sueño y el entreno se ajustan a este horario."}));
+  acts.filter(a => a.e>d0 && a.s<d1).forEach(a => items.push({t:a.s, c:"var(--ground)", ic: a.home ? FI.home : FI.cal, b:`${a.label} hasta las ${tt(a.e)}`, m: a.home ? "Turno en casa: ten el bolso listo; el gimnasio queda para después del turno." : "Presencial: te levantas con 2 h de margen y el entreno queda fuera de este horario."}));
   const np = napOf(s); if (np) items.push({t:np.a, c:"var(--nap)", ic:FI.moon, b:`Siesta hasta las ${tt(np.b)}`, m:"90 min, un ciclo completo antes de una jornada larga."});
   const tw = trainWin(s,p);
   if (tw && !tw.none) items.push({t:tw.a, c:"var(--ex)", ic:FI.dumb, b:`${p.name} hasta las ${tt(tw.b)}`, m:`Ventana de ${tw.D} min con margen para comer, ducharte y dormir.`});
@@ -1262,7 +1325,7 @@ const XI = {
   gear: sv(`<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>`, 1.8)
 };
 const LV = {ok:["Óptima","var(--ok)"], mid:["Moderada","var(--mid)"], low:["Baja","var(--warn)"]};
-const KIND_S = {vuelo:"Vuelo",fuera:"Pernocta",blanco:"Día B",libre:"Libre",tierra:"DH",act:"Reserva",sininfo:"Sin datos"};
+const KIND_S = {vuelo:"Vuelo",fuera:"Pernocta",blanco:"Día B",libre:"Libre",tierra:"DH",act:"Turno",sininfo:"Sin datos"};
 const kindS = i => i.type==="act" ? (i.code||"Act.") : i.type==="libre" && i.code ? i.code : KIND_S[i.type];
 const moreBtn = `<button type="button" class="iconb" data-nav="mas" aria-label="Perfil, ajustes y más">${FI.user}</button>`;
 const RR = 2*Math.PI*34;
@@ -1276,6 +1339,7 @@ function readyCard(s){
     if (tw.none) recs.push(["warn", `No cabe una sesión de ${tw.D} min sin quitarle horas al sueño o al servicio. Haz una versión de 20-25 min o cambia a recuperación activa.`, true]);
     else if (r.lvl==="low") recs.push(["warn", `Recuperación baja. Si entrenas, hazlo a RPE 5-6 entre ${tt(tw.a)} y ${tt(tw.b)}, o cambia a recuperación activa.`, true]);
     else recs.push(["ok", `Entrena entre ${tt(tw.a)} y ${tt(tw.b)}: no choca con tu sueño ni con el servicio.`]);
+    if (info(s).type==="blanco" && !tw.none) recs.push(["mid", "Día blanco: si a las 21:00 de ayer no te asignaron nada, entrena normal. Si te activaron, cambia la sesión.", true]);
   } else if (p && p.key==="P") recs.push(["mid", "Hoy solo recuperación activa: pasos suaves y movilidad. La sesión se movió por el vuelo."]);
   else if (p) recs.push(["ok", "Día de descanso del plan: suma pasos y cuida la hora de acostarte."]);
   if (n1.kind==="pre") recs.push(["mid", `Servicio nocturno: duerme de ${tt(n1.bed)} a ${tt(n1.wake)} antes de presentarte${n1.recup?` y recupera de ${tt(n1.recup.a)} a ${tt(n1.recup.b)} al llegar`:""}.`]);
@@ -1285,7 +1349,7 @@ function readyCard(s){
   return `<div class="card" data-d="${s}">
     <div class="chd"><span class="ovl">Recuperación</span><small>${r.logged ? "Con tu registro de sueño" : "Estimada con tu programación"}</small></div>
     <div class="rdy">${ringHtml(r)}<div><b class="rlv" style="--c:${c}">${l}</b><ul class="facts">${r.f.length ? r.f.map(x=>`<li>${esc(x)}</li>`).join("") : "<li>Sin carga relevante en las últimas 72 h</li>"}</ul></div></div>
-    ${recs.map(([k,txt,btn]) => `<div class="rec" style="--c:${C[k]}">${k==="ok"?XI.ok:XI.info}<div>${esc(txt)}${btn?`<button type="button" class="linkish" data-act="light">Cambiar a recuperación activa ›</button>`:""}</div></div>`).join("")}
+    ${recs.map(([k,txt,btn]) => `<div class="rec" style="--c:${C[k]}">${k==="ok"?XI.ok:XI.info}<div>${esc(txt)}${btn?`<button type="button" class="linkish" data-act="light">${info(s).type==="blanco" ? "Me activaron: pasar a recuperación activa ›" : "Cambiar a recuperación activa ›"}</button>`:""}</div></div>`).join("")}
   </div>`;
 }
 function dayPlanCard(s, link){
@@ -1316,7 +1380,7 @@ function dayRow(s){
   const i = info(s), p = planned(s), rec = getDay(s), t = today(), n1 = night(s), tw = trainWin(s,p);
   let main, sub = "";
   if (i.type==="vuelo"){ const d = i.duty; main = chain(d); sub = `${timeTxt(d)} · jornada ${hDur(d.e-d.s)}${lastDest(d)!=="SCL"?` · pernocta en ${city(lastDest(d))}`:""}`; }
-  else main = {fuera: i.place?`En ${city(i.place)}`:"Fuera de base", blanco:"Reserva: asignación hasta las 21:00 de la víspera", libre: i.code==="DR" ? "Día de descanso (DR)" : "Sin vuelos", tierra:"Feriado devuelto", act:`${i.label} · ${i.st}–${i.en}`, blanco:"Reserva B de 03:00 a 21:00", sininfo:"Sin programación cargada"}[i.type];
+  else main = {fuera: i.place?`En ${city(i.place)}`:"Fuera de base", blanco:"Día blanco: asignación hasta las 21:00 de la víspera", libre: i.code==="DR" ? "Día requerido (DR)" : "Sin vuelos", tierra:"Feriado devuelto", act:`${i.label} · ${i.st}–${i.en}`, sininfo:"Sin programación cargada"}[i.type];
   let ses = "";
   if (isTrain(p) && p.auto!=="out"){
     const done = rec.st==="hecha" || rec.st==="parcial";
@@ -1433,7 +1497,7 @@ function vCal(){
     }
     body = `<div class="wnav"><button type="button" class="iconb" data-act="mon" data-v="-1" aria-label="Mes anterior"${curM<=minM?" disabled":""}>${FI.left}</button><div><b>${monthLabel(curM)}</b></div><button type="button" class="iconb" data-act="mon" data-v="1" aria-label="Mes siguiente"${curM>=maxM()?" disabled":""}>${FI.right}</button></div>
       <div class="mgrid">${g}</div>
-      <div class="mlegend"><span style="--t:var(--fly)"><i></i>Vuelo</span><span style="--t:var(--away)"><i></i>Fuera</span><span style="--t:var(--res)"><i></i>Día B</span><span style="--t:var(--off)"><i></i>Libre</span><span style="--t:var(--ground)"><i></i>DH</span><span style="--t:var(--ground)"><i></i>Reserva o tierra</span><span><i style="background:var(--ex)"></i>Entrenamiento</span></div>`;
+      <div class="mlegend"><span style="--t:var(--fly)"><i></i>Vuelo</span><span style="--t:var(--away)"><i></i>Fuera</span><span style="--t:var(--res)"><i></i>Día B</span><span style="--t:var(--off)"><i></i>Libre</span><span style="--t:var(--ground)"><i></i>DH</span><span style="--t:var(--ground)"><i></i>Turno o reunión</span><span><i style="background:var(--ex)"></i>Entrenamiento</span></div>`;
   }
   return `${bar("Agenda", moreBtn, true)}
     <div class="tabsx"><button type="button" data-act="calmode" data-v="sem" aria-pressed="${calMode==="sem"}">Semana</button><button type="button" data-act="calmode" data-v="mes" aria-pressed="${calMode==="mes"}">Mes</button></div>
@@ -1518,8 +1582,8 @@ function vDia(s){
   } else {
     const txt = i.type==="fuera" ? `${i.place?`Todo el día en ${city(i.place)}.`:"Pernoctas fuera de Santiago."}${i.back?` Vuelves el ${fDay.format(noon(i.back))}.`:""}`
       : i.type==="blanco" ? `Hasta las 21:00 del día anterior te pueden asignar actividad.${i.note?` ${esc(i.note)}`:""}`
-      : i.type==="act" ? `De ${i.st} a ${i.en}. ${i.home ? "Debes estar disponible para un llamado; entrena después de las 12:00." : "Actividad presencial; el sueño y el entreno se ajustan a este horario."}`
-      : i.type==="libre" ? (i.code==="DR" ? "DR: día de descanso, sin vuelos." : "Sin vuelos. Día libre en Santiago.") : i.type==="tierra" ? "Feriado devuelto, sin vuelos." : "Este día no está en la programación cargada.";
+      : i.type==="act" ? `De ${i.st} a ${i.en}. ${i.home ? "Turno en casa: entrena después de las 12:00 si no te activan." : "Actividad presencial; el sueño y el entreno se ajustan a este horario."}`
+      : i.type==="libre" ? (i.code==="DR" ? "DR: día requerido, libre que solicitaste." : "Sin vuelos. Día libre en Santiago.") : i.type==="tierra" ? "Feriado devuelto, sin vuelos." : "Este día no está en la programación cargada.";
     top = `<div class="kcard" style="--t:${TONE[i.type]}"><b>${i.type==="act" ? esc(i.label) : KIND[i.type]}</b><p>${txt}</p></div>`;
   }
   let plan;
@@ -1788,7 +1852,7 @@ function vMas(){
   <div class="card" style="padding:4px 16px"><ul class="menu">
     <li><button type="button" data-nav="prog"><span class="ic blue">${FI.chart}</span><span class="tx"><b>Progreso</b><small>Semanas, peso, medidas y adherencia</small></span>${chev}</button></li>
     <li><button type="button" data-nav="des"><span class="ic sl">${FI.moon}</span><span class="tx"><b>Descanso y sueño</b><small>Plan de sueño, registro y parámetros</small></span>${chev}</button></li>
-    <li><button type="button" data-act="import"><span class="ic fly">${FI.upload}</span><span class="tx"><b>Cargar programación</b><small>${lastKey ? `Cargada hasta el ${fDM.format(noon(lastKey))}` : "Pega el texto o sube una captura"}</small></span>${chev}</button></li>
+    <li><button type="button" data-act="import"><span class="ic fly">${FI.upload}</span><span class="tx"><b>Cargar programación</b><small>${lastKey ? `Cargada hasta el ${fDM.format(noon(lastKey))}` : "Sube el PDF de tu programación"}</small></span>${chev}</button></li>
     <li><button type="button" data-nav="nut"><span class="ic ex">${FI.apple}</span><span class="tx"><b>Nutrición y hábitos</b><small>Calorías, macros, agua y pasos</small></span>${chev}</button></li>
   </ul></div>
   ${restParams()}
@@ -1906,7 +1970,7 @@ async function importBackup(file){
     toast(n ? `Respaldo importado: ${n} registros` : "El respaldo no tenía registros");
   } catch(e){ toast("Ese archivo no es un respaldo de FlyFit."); }
 }
-document.addEventListener("change", e => { const el = e.target; if (el.dataset?.act==="bkimp" && el.files?.[0]) importBackup(el.files[0]); });
+document.addEventListener("change", e => { const el = e.target; if (el.dataset?.act==="bkimp" && el.files?.[0]) importBackup(el.files[0]); if (el.dataset?.act==="imppdf" && el.files?.[0]) impPdf(el.files[0]); });
 
 /* Eventos */
 function noteSaved(el){ const sv = el.parentElement.querySelector(".saved"); if (!sv) return; sv.textContent = "Guardado"; clearTimeout(sv._t); sv._t = setTimeout(()=>sv.textContent="",1500); }
