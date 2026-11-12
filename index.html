@@ -1685,13 +1685,15 @@ function readiness(s){
   const n0 = night(addD(s,-1)), r = getDay(s).n || {}, logged = r.horas!=null;
   const slept = logged ? r.horas : n0.kind==="none" ? 0 : n0.len/60, def = Math.max(0, c.sleepH - slept), q = r.sueno;
   const gap = restGap(s);
-  const pen = dh*1.6 + early*7 + late*6 + def*9 + (q ? [0,16,10,4,0,0][q] : 0) + (gap && gap.h<12 ? 10 : 0);
+  const sve = typeof svLoad==='function' ? svLoad(s) : 0;
+  const pen = dh*1.6 + early*7 + late*6 + def*9 + (q ? [0,16,10,4,0,0][q] : 0) + (gap && gap.h<12 ? 10 : 0) + Math.min(20, sve*0.12);
   if (dh>=0.5) f.push(`${fmtH(dh)} de servicio en las últimas 72 h`);
   if (early) f.push(`${early} ${early===1?"presentación":"presentaciones"} antes de las 06:00`);
   if (late) f.push(`${late} ${late===1?"término nocturno":"términos nocturnos"}`);
   if (def>=0.5) f.push(`Sueño ${logged?"registrado":"posible"}: ${fmtH(slept)}, ${fmtH(def)} bajo tu objetivo`);
   if (q && q<=3) f.push(`Calidad de sueño: ${SLQ[q-1].toLowerCase()}`);
   if (gap && gap.h<12) f.push(`Descanso entre jornadas de solo ${fmtH(gap.h)}`);
+  if (sve>=40) f.push(`Esfuerzo relativo en Strava de ${sve} en las últimas 48 h`);
   const sc = Math.max(5, Math.min(100, Math.round(100-pen)));
   return {sc, lvl: sc>=70 ? "ok" : sc>=45 ? "mid" : "low", f, logged};
 }
@@ -1703,7 +1705,9 @@ function blocks(s){
   duties.forEach(d => { const ar = arrOf(d); push("duty", d.s, d.e, "Servicio"); push("go", d.e, ar, lastDest(d)==="SCL" ? "Traslado a casa" : "Traslado al hotel"); if (RC().post) push("post", ar, addM(ar,RC().post), "Descanso post vuelo"); });
   acts().forEach(a => push("act", a.s, a.e, a.label));
   const np = napOf(s); if (np) push("nap", np.a, np.b, "Siesta");
-  const p = planned(s), tw = trainWin(s,p); if (tw && !tw.none) push("train", tw.a, tw.b, p.name);
+  const sva = (getDay(s).sv||[]).map(a => { const st = new Date(a.start); return [st, addM(st, a.min||0), a]; });
+  sva.forEach(([a,b,x]) => push("train", a, b, `Strava: ${x.name}`));
+  const p = planned(s), tw = trainWin(s,p); if (tw && !tw.none && !sva.length) push("train", tw.a, tw.b, p.name);
   return out;
 }
 function tl(s, mini){
@@ -1723,7 +1727,8 @@ function agenda(s){
   duties.filter(d => { const ar = arrOf(d); return ar>=d0 && ar<d1; }).forEach(d => { const ar = arrOf(d), c = RC(), home = lastDest(d)==="SCL";
     items.push({t:ar, c:"var(--rest)", ic: home ? FI.home : FI.bed, b: home ? "Llegada a casa" : `Llegada al hotel en ${city(lastDest(d))}`, m: `${hDur(ar-d.e)} desde el término a las ${tt(d.e)}.${c.post ? ` Descanso post vuelo hasta las ${tt(addM(ar,c.post))}: come, dúchate y desconecta antes de entrenar.` : ""}`}); });
   const np = napOf(s); if (np) items.push({t:np.a, c:"var(--nap)", ic:FI.moon, b:`Siesta hasta las ${tt(np.b)}`, m:"90 min, un ciclo completo antes de una jornada larga."});
-  const tw = trainWin(s,p);
+  const tw0 = trainWin(s,p), svl = getDay(s).sv || [], tw = svl.length ? null : tw0;
+  svl.forEach(a => { const st = new Date(a.start); items.push({t:st, c:"#FC4C02", ic:FI.dumb, b:`${a.name} hasta las ${tt(addM(st,a.min||0))}`, m:`Registrado en Strava: ${svType(a.type).toLowerCase()}, ${a.min} min${a.hr?`, ${a.hr} ppm`:""}${a.effort!=null?`, esfuerzo ${a.effort}`:""}.`}); });
   if (tw && !tw.none) items.push({t:tw.a, c:"var(--ex)", ic:FI.dumb, b:`${p.name} hasta las ${tt(tw.b)}`, m:`Unos ${tw.D} min, con margen para comer, ducharte y dormir.`});
   if (tw && tw.none) items.push({t:at(s,"12:00"), c:"var(--warn)", ic:FI.dumb, b:`${p.name}: sin ventana segura`, m:"Haz una versión de 20-25 min o cambia a recuperación activa."});
   if (n1.kind!=="none") items.push({t:n1.bed, c:"var(--sleep)", ic:FI.moon, b: n1.kind==="pre" ? "Sueño previo al servicio" : "Acostarte", m:`${hDur(n1.wake-n1.bed)} hasta las ${tDay(n1.wake,s)}${n1.why?`, ajustado por ${n1.why}`:""}`});
@@ -1800,7 +1805,7 @@ function dayRow(s){
     ses = rec.st==="saltada" ? `<span class="chip miss">${FI.dumb}${esc(p.name)} · no hecha</span>` : `<span class="chip ex${done?" on":""}">${FI.dumb}${esc(p.name)}${done?" ✓":tw && !tw.none?` · ${tt(tw.a)}`:" · sin ventana"}</span>`;
   } else if (p && p.key==="P") ses = `<span class="chip rest">${FI.walk}Recuperación activa</span>`;
   else if (p) ses = `<span class="chip rest">${FI.moon}Descanso</span>`;
-  const slp = n1.kind!=="none" ? `<span class="chip sl">${FI.bed}${tt(n1.bed)}–${tt(n1.wake)}</span>` : "";
+  const slp = (n1.kind!=="none" ? `<span class="chip sl">${FI.bed}${tt(n1.bed)}–${tt(n1.wake)}</span>` : "") + ((rec.sv||[]).length ? `<span class="chip" style="color:#FC4C02">Strava · ${(rec.sv).map(a => svType(a.type)).join(", ")}</span>` : "");
   return `<li><button type="button" class="drow${s===t?" now":""}" data-nav="dia" data-s="${s}"><span class="dc"><small>${s===t?"Hoy":wdn(s)}</small><b>${dnum(s)}</b></span><span class="dm"><span class="dh"><span class="pill" style="--t:${TONE[i.type]}">${kindS(i)}</span><b>${esc(main)}</b></span>${sub?`<small>${esc(sub)}</small>`:""}${tl(s,true)}<span class="chips">${ses}${slp}</span></span></button></li>`;
 }
 function habMini(s){
@@ -1996,6 +2001,7 @@ function vDia(s){
     ${top}
     ${dayPlanCard(s, false)}
     ${plan}
+    ${svDayCard(s)}
     ${readyCard(s)}
     ${mealPlanHtml(s)}
     <div class="card" style="padding:4px 16px"><button type="button" class="rowlink" style="border:0;background:transparent;padding:10px 0;margin:0" data-nav="nut" data-s="${s}"><span class="ic ex" style="width:34px;height:34px">${FI.apple}</span><span class="tx"><b>Nutrición y hábitos</b><small>${hb} de ${HKEYS.length} hábitos cumplidos</small></span>${chev}</button></div>
@@ -2351,6 +2357,7 @@ function vMas(){
     <li><button type="button" data-act="import"><span class="ic fly">${FI.upload}</span><span class="tx"><b>Cargar programación</b><small>${lastKey ? `Cargada hasta el ${fDM.format(noon(lastKey))}` : "Sube el PDF de tu programación"}</small></span>${chev}</button></li>
     <li><button type="button" data-nav="nut"><span class="ic ex">${FI.apple}</span><span class="tx"><b>Nutrición y hábitos</b><small>Calorías, macros, agua, pasos y sueño</small></span>${chev}</button></li>
   </ul></div>
+  ${svCard()}
   ${restParams()}
   <div class="card">
     <h3>Comidas frecuentes</h3>
@@ -2515,7 +2522,7 @@ document.addEventListener("click", async e => {
     case "goaj": return go("aj");
     case "ajback": return go(prevTab);
     case "full": fullView.add(s); break;
-    case "st": { const nv = rec.st===v ? "" : v; popKey = `${s}:st:${nv}`; setDayUndo(s, {st:nv}, nv ? `Sesión: ${LBL[nv].toLowerCase()}` : "Estado quitado"); break; }
+    case "st": { const nv = rec.st===v ? "" : v; popKey = `${s}:st:${nv}`; setDayUndo(s, {st:nv, stv:false}, nv ? `Sesión: ${LBL[nv].toLowerCase()}` : "Estado quitado"); break; }
     case "rpe": { const x = rec.rpe==null ? 6 : Math.max(1, Math.min(10, rec.rpe + +v)); setDay(s, {rpe:x}); break; }
     case "rpe0": setDay(s, {rpe:null}); break;
     case "dur": setDay(s, {min: rec.min===+v ? null : +v}); break;
@@ -2603,6 +2610,8 @@ document.addEventListener("click", async e => {
       toast("Comida borrada", () => { S.cfg.meals = {list:prev}; save("cfg","meals"); rerender(true); }); break;
     }
     case "wkclose": { const w = b.closest("[data-w]").dataset.w; S.weeks[w] = Object.assign({}, S.weeks[w], {done:true}); save("weeks", w); toast("Semana cerrada"); break; }
+    case "svsync": svSync(false); return;
+    case "svoff": { if (!confirm("¿Desconectar Strava de este dispositivo? Las actividades ya cargadas se mantienen.")) return; SV = null; svSave(); toast("Strava desconectado"); break; }
     case "wsave": {
       const d = $("#wDate").value, x = num($("#wKg").value), err = $("#wErr");
       if (!d || x==null || x<40 || x>200){ err.hidden = false; err.textContent = "Escribe un peso válido, por ejemplo 95,8."; return; }
@@ -2687,8 +2696,88 @@ setInterval(() => {
     if (c.mode==="rest") el.querySelector("[data-cv]").textContent = fmtT(Math.ceil(c.left));
   });
 }, 250);
+/* ===================== Strava ===================== */
+/* Solo en la versión web (Vercel). El acceso se guarda en este dispositivo, fuera del respaldo. */
+const SV_KEY = "flyfit-strava";
+const ON_WEB = !(window.claude && window.claude.use);
+let SV = null, svBusy = false;
+try { SV = JSON.parse(localStorage.getItem(SV_KEY) || "null"); } catch(e){}
+const svSave = () => { try { SV ? localStorage.setItem(SV_KEY, JSON.stringify(SV)) : localStorage.removeItem(SV_KEY); } catch(e){} };
+const SV_STR = {WeightTraining:1, Workout:1, Crossfit:1, HighIntensityIntervalTraining:1};
+const SV_CAR = {Run:1, TrailRun:1, Ride:1, VirtualRide:1, MountainBikeRide:1, GravelRide:1, EBikeRide:0, Rowing:1, VirtualRow:1, Elliptical:1, StairStepper:1, Swim:1, Hike:1};
+const SV_ES = {WeightTraining:"Fuerza", Workout:"Entrenamiento", Crossfit:"Crossfit", HighIntensityIntervalTraining:"HIIT", Run:"Trote", TrailRun:"Trail", Ride:"Bicicleta", VirtualRide:"Bici indoor", MountainBikeRide:"MTB", GravelRide:"Gravel", Rowing:"Remo", VirtualRow:"Remo indoor", Elliptical:"Elíptica", StairStepper:"Escaladora", Swim:"Natación", Hike:"Cerro", Walk:"Caminata", Yoga:"Yoga"};
+const svType = t => SV_ES[t] || t;
+const svDay = s => getDay(s).sv || [];
+/* Esfuerzo relativo de Strava en las 48 h previas al día s (días s-2 y s-1) */
+function svLoad(s){ let e = 0; [addD(s,-2), addD(s,-1)].forEach(d => svDay(d).forEach(a => e += a.effort || 0)); return e; }
+async function svToken(){
+  if (!SV) return null;
+  if (SV.expires_at*1000 > Date.now()+120000) return SV.access_token;
+  const r = await fetch("/api/strava/refresh", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({refresh_token: SV.refresh_token})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "No se pudo renovar el acceso a Strava.");
+  SV = Object.assign({}, SV, j); svSave(); return SV.access_token;
+}
+/* Marca la sesión del plan como hecha si hay una actividad compatible ese día */
+function svMatch(s, list){
+  const p = planned(s), rec = getDay(s); if (!isTrain(p) || p.auto==="out" || (rec.st && !rec.stv)) return null;
+  const strong = p.type==="fuerza", ok = list.filter(a => a.min>=15 && (strong ? (SV_STR[a.type] || a.type==="Workout") : (SV_CAR[a.type] || SV_STR[a.type])));
+  if (!ok.length) return null;
+  const min = ok.reduce((x,a) => x+a.min, 0), est = p.rt ? estMin(p.rt, rwk(s)) : 40;
+  return {st: min >= est*0.7 ? "hecha" : "parcial", stv: true, min: rec.min && !rec.stv ? rec.min : min};
+}
+async function svSync(quiet){
+  if (!SV || svBusy) return; svBusy = true;
+  try {
+    const tk = await svToken(), after = Math.floor((Date.now() - 45*864e5)/1000);
+    const r = await fetch(`/api/strava/activities?after=${after}`, {headers:{Authorization:`Bearer ${tk}`}});
+    const a = await r.json().catch(() => []);
+    if (r.status===401){ SV = null; svSave(); throw new Error("Strava cerró la sesión. Vuelve a conectar."); }
+    if (!r.ok) throw new Error(a.error || "No se pudieron leer tus actividades.");
+    const by = {}; a.forEach(x => { const d = ymd(new Date(x.start)); (by[d] = by[d] || []).push(x); });
+    let n = 0, m = 0;
+    for (const [d, list] of Object.entries(by)){
+      list.sort((x,y) => x.start<y.start?-1:1);
+      const prev = JSON.stringify(svDay(d)), cur = JSON.stringify(list);
+      const patch = {}; if (prev!==cur){ patch.sv = list; n += list.length - (getDay(d).sv||[]).length; }
+      const mt = svMatch(d, list); if (mt && (getDay(d).st!==mt.st || getDay(d).min!==mt.min)){ Object.assign(patch, mt); m++; }
+      if (Object.keys(patch).length) setDay(d, patch);
+    }
+    SV.last = Date.now(); svSave();
+    if (!quiet || n>0 || m>0) toast(n>0 || m>0 ? `Strava: ${Math.max(0,n)} actividades nuevas${m?`, ${m} ${m===1?"sesión marcada":"sesiones marcadas"}`:""}` : "Strava al día");
+    rerender(true);
+  } catch(e){ if (!quiet) toast(e.message || "No se pudo sincronizar con Strava."); }
+  finally { svBusy = false; }
+}
+function svCard(){
+  if (!ON_WEB) return "";
+  if (!SV) return `<div class="card"><div class="chd"><span class="ovl">Strava</span></div>
+    <p class="lead" style="margin-top:0">Conecta tu cuenta para traer tus actividades: la app marca las sesiones hechas, guarda duración, pulso y esfuerzo, y los suma al índice de recuperación.</p>
+    <a class="btn block" href="/api/strava/auth" style="margin-top:12px;text-align:center;text-decoration:none;background:#FC4C02">Conectar con Strava</a></div>`;
+  return `<div class="card"><div class="chd"><span class="ovl">Strava</span><small>${SV.athlete ? esc(SV.athlete) : "Conectado"}</small></div>
+    <p class="lead" style="margin-top:0">${SV.last ? `Última sincronización: ${cap(fDay.format(new Date(SV.last)))}, ${tt(new Date(SV.last))}.` : "Aún sin sincronizar."} Se actualiza sola al abrir la app.</p>
+    <div class="row2"><button type="button" class="btn sm" data-act="svsync">Sincronizar ahora</button><button type="button" class="btn ghost sm" data-act="svoff">Desconectar</button></div></div>`;
+}
+function svDayCard(s){
+  const l = svDay(s); if (!l.length) return "";
+  return `<div class="card"><div class="chd"><span class="ovl">Strava</span><small>${l.length} ${l.length===1?"actividad":"actividades"}</small></div>
+    <ul class="gaps">${l.map(a => `<li><span class="gd">${tt(new Date(a.start))}</span><span><b style="color:var(--ink);font-weight:600">${esc(a.name)}</b><br><small style="color:var(--muted)">${svType(a.type)} · ${a.min} min${a.km?` · ${kgFmt(a.km)} km`:""}${a.hr?` · ${a.hr} ppm`:""}</small></span><b style="color:#FC4C02">${a.effort!=null?`${a.effort}`:""}</b></li>`).join("")}</ul>
+    ${l.some(a => a.effort!=null) ? `<p class="hint">El número naranjo es el esfuerzo relativo de Strava.</p>` : ""}</div>`;
+}
+/* Vuelta desde Strava: los datos llegan en el fragmento de la URL */
+(function(){
+  const h = location.hash;
+  if (h.startsWith("#strava=")){
+    try { SV = JSON.parse(atob(h.slice(8).replace(/-/g,"+").replace(/_/g,"/"))); svSave(); setTimeout(() => { toast("Strava conectado"); svSync(true); }, 300); } catch(e){}
+    history.replaceState(null, "", location.pathname);
+  } else if (h.startsWith("#strava-error=")){
+    const m = decodeURIComponent(h.slice(14)); history.replaceState(null, "", location.pathname); setTimeout(() => toast(m), 300);
+  } else if (SV && ON_WEB) setTimeout(() => svSync(true), 800);
+})();
+
 /* Arranque */
 rebuild(); render(true); showSync();
+
 setInterval(() => { if (R.v==="inicio") render(false); }, 30000);
 
 (async () => {
